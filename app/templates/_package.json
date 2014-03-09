@@ -1,0 +1,19 @@
+{
+  "name": "package",
+  "version": "0.0.0",
+  "dependencies": {},
+  "devDependencies": {
+    "grunt": "*",
+    "grunt-cli": "*",
+    "grunt-contrib-jshint": "*",
+    "grunt-contrib-watch": "*",
+    "grunt-mocha": "*",
+    "load-grunt-tasks": "*",
+    "grunt-contrib-connect": "*",
+    "grunt-zip": "*",
+    "underscore": "*",
+    "grunt-bg-shell": "*",
+    "node-dir": "*",
+    "inquirer": "*"
+  }
+}
