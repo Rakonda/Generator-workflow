@@ -89,10 +89,10 @@ grunt.initConfig({
  zip: {
    widgets: {
      // Files to zip together
-     src: ['app/**','testser.txt'],
+     src: ['app/**','log.txt'],
 
      // Destination of zip file
-     dest: 'backup/32.zip'
+     dest: 'backup/project.zip'
    }
  },
  bgShell: {
@@ -143,23 +143,30 @@ dir.files("app", function(err,  files) {
 grunt.registerTask('build', 'Treat yo\' self!', function() {
   var done = this.async();
   var data = [];
+  var project_info = [];
 
   // Setup questions.
   var questions = [
     {
       type: 'confirm',
       name: 'overwrite',
-      message: 'Would you to overwrite files strecture schema?',
+      message: 'Rescan for the files?',
       default: false
     },
     {
       type: 'input',
       name: 'version',
       message: 'Which version would you like to create',
-      default: 'v1'
+      default: '1'
     }
   ];
 
+  // Get project infromations
+  try {
+    project_info = grunt.file.readJSON('project.txt',"utf8");
+  } catch (e) {
+    grunt.log.errorlns(e);
+  }
 
   // Read files.txt fil, and get data from it.
   try {
@@ -167,6 +174,22 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   } catch (e) {
     grunt.log.errorlns(e);
   }
+
+// Setup questions.
+  var questions = [
+    {
+      type: 'confirm',
+      name: 'overwrite',
+      message: 'Rescan for the files?',
+      default: false
+    },
+    {
+      type: 'input',
+      name: 'version',
+      message: 'Would you like to update the Current version? ',
+      default: project_info.version
+    }
+  ];
 
   // Check for the deleted files.
    var deleted_files = [];
@@ -204,25 +227,28 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
     }
 
     // Create log template
-    var text = "****************************************************\n";
-      text += "*               Version + data             *\n";
-      text += "**********************************************\n\n";
+  var text =  "====================================================\n";
+      text += " Project       : " + project_info.project_name + "\n";
+      text += " Creation date : " + project_info.creation_date + "\n";
+      text += " Version       : " + project_info.version + "\n";
+      text += " Default base  : " + project_info.base_name + "\n";
+      text += "====================================================\n\n";
       text += "Deleted files (" + _.size(deleted_files) + ") :\n\n";
       if(_.size(deleted_files) > 0) {
         for(var df in deleted_files) text += "\t-> "+ deleted_files[df] +"\n";
       }
-      text += "---------------------------------------------\n\n";
+      text += "----------------------------------------------------\n\n";
       text += "New files (" + _.size(new_files) + ") :\n\n";
       if(_.size(new_files) > 0) {
         for(var nf in new_files) text += "\t-> "+ new_files[nf][0] +"\n";
       }
-      text += "\n---------------------------------------------\n\n";
+      text += "---------------------------------------------------\n\n";
       text += "Modifed files (" + _.size(m_files) + ") :\n\n";
       if(_.size(m_files) > 0) {
         for(var mf in m_files) text += "\t-> "+ m_files[mf] +"\n";
       }
       
-    grunt.file.write('testser.txt', text, 'utf8');
+    grunt.file.write('log.txt', text, 'utf8');
   });
 
 
@@ -239,7 +265,22 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
     
       var d = new Date();
       d = d.getDate() +"-"+d.getMonth()+"-"+d.getFullYear();
-      var outzip = "project_name v" + answers.version + " " +d ;
+      project_info.creation_date = d;
+      if(answers.version == project_info.version) {
+        var outzip = project_info.project_name + " v" + project_info.version + " " +d;
+      }else 
+      {
+        var outzip = project_info.project_name + " v" + answers.version + " " +d;
+        project_info.version = answers.version;
+        try 
+        {
+          grunt.file.write('project.txt', JSON.stringify(project_info, null, " "), 'utf8');
+          grunt.log.oklns("project.txt updated to new version "+ project_info.version +".");
+        } catch (e) {
+          grunt.log.errorlns(e);
+        }
+      }
+      
       grunt.config.set('zip.widgets.dest', 'backup/'+outzip+'.zip');
       grunt.task.run("zip:widgets");
       done();
