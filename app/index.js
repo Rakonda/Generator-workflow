@@ -13,6 +13,7 @@ var WorkflowGenerator = yeoman.generators.Base.extend({
     this.on('end', function () {
       if (!this.options['skip-install']) {
         this.npmInstall();
+        this.spawnCommand('grunt', ['prepare']);
       }
     });
   },
