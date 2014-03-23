@@ -7,6 +7,7 @@ var fs    = require('fs');
 var _     = require('underscore')._;
 var dir     = require('node-dir');
 var inquirer = require("inquirer");
+var app_path = __dirname+'/app';
 // Define the configuration for all the tasks
 grunt.initConfig({
  project: {
@@ -87,9 +88,16 @@ grunt.initConfig({
    all: ['<%= project.app %>/index.html']
  },
  zip: {
-   widgets: {
+   without_tree: {
      // Files to zip together
      src: ['app/**','log.txt'],
+
+     // Destination of zip file
+     dest: 'backup/project.zip'
+   },
+   with_tree: {
+     // Files to zip together
+     src: ['app/**','log.txt', 'files_structure.txt'],
 
      // Destination of zip file
      dest: 'backup/project.zip'
@@ -99,10 +107,10 @@ grunt.initConfig({
       _defaults: {
         bg: true
       },
-      h5bp: {
-        cmd: 'yo h5bp',
-        bg: false
-      },
+      tree: {
+        cmd: "cd app & tree /f /a > %temp%\Listing >> files_structure.txt",
+        bg: true
+      }
     }
 }); // end of grunt config
 
@@ -145,22 +153,6 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   var data = [];
   var project_info = [];
 
-  // Setup questions.
-  var questions = [
-    {
-      type: 'confirm',
-      name: 'overwrite',
-      message: 'Rescan for the files?',
-      default: false
-    },
-    {
-      type: 'input',
-      name: 'version',
-      message: 'Which version would you like to create',
-      default: '1'
-    }
-  ];
-
   // Get project infromations
   try {
     project_info = grunt.file.readJSON('project.txt',"utf8");
@@ -168,7 +160,7 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
     grunt.log.errorlns(e);
   }
 
-  // Read files.txt fil, and get data from it.
+  // Read files.txt file, and get data from it.
   try {
     data = grunt.file.readJSON('Files.txt',"utf8");
   } catch (e) {
@@ -188,6 +180,12 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
       name: 'version',
       message: 'Would you like to update the Current version? ',
       default: project_info.version
+    },
+    {
+      type: 'confirm',
+      name: 'tree',
+      message: 'Generate files strecture? ',
+      default: true
     }
   ];
 
@@ -227,28 +225,32 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
     }
 
     // Create log template
-  var text =  "====================================================\n";
+  var text =  "════════════════════════════════════════════════════\n";
       text += " Project       : " + project_info.project_name + "\n";
       text += " Creation date : " + project_info.creation_date + "\n";
       text += " Version       : " + project_info.version + "\n";
       text += " Default base  : " + project_info.base_name + "\n";
-      text += "====================================================\n\n";
+      text += "════════════════════════════════════════════════════\n\n";
       text += "Deleted files (" + _.size(deleted_files) + ") :\n\n";
       if(_.size(deleted_files) > 0) {
         for(var df in deleted_files) text += "\t-> "+ deleted_files[df] +"\n";
       }
-      text += "----------------------------------------------------\n\n";
+      text += "————————————————————————————————————————————————————\n\n";
       text += "New files (" + _.size(new_files) + ") :\n\n";
       if(_.size(new_files) > 0) {
-        for(var nf in new_files) text += "\t-> "+ new_files[nf][0] +"\n";
+        for(var nf in new_files) text += "\t► "+ new_files[nf][0] +"\n";
       }
-      text += "---------------------------------------------------\n\n";
+      text += "————————————————————————————————————————————————————\n\n";
       text += "Modifed files (" + _.size(m_files) + ") :\n\n";
       if(_.size(m_files) > 0) {
-        for(var mf in m_files) text += "\t-> "+ m_files[mf] +"\n";
+        for(var mf in m_files) text += "\t► "+ m_files[mf] +"\n";
       }
-      
-    grunt.file.write('log.txt', text, 'utf8');
+      text += "\n\n\n";
+
+      fs.appendFile('log.txt', text, function (err) {
+        if (err) throw err;
+      });
+    // grunt.file.write('log.txt', text, 'utf8');
   });
 
 
@@ -280,9 +282,18 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
           grunt.log.errorlns(e);
         }
       }
-      
-      grunt.config.set('zip.widgets.dest', 'backup/'+outzip+'.zip');
-      grunt.task.run("zip:widgets");
+
+      if(answers.tree)
+      {
+        grunt.task.run('bgShell:tree');
+        grunt.config.set('zip.with_tree.dest', 'backup/' + outzip + '.zip');
+        grunt.task.run("zip:with_tree");
+
+      }else {
+        grunt.config.set('zip.without_tree.dest', 'backup/' + outzip + '.zip');
+        grunt.task.run("zip:without_tree");
+      }
+
       done();
     });
 
@@ -299,10 +310,6 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
             diff.push(a[i]);
     return diff;
   }
-
-
-
-
 
 // Default task.
 grunt.registerTask('default');
