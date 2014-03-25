@@ -7,7 +7,6 @@ var fs    = require('fs');
 var _     = require('underscore')._;
 var dir     = require('node-dir');
 var inquirer = require("inquirer");
-var app_path = __dirname+'/app';
 // Define the configuration for all the tasks
 grunt.initConfig({
  project: {
@@ -108,7 +107,7 @@ grunt.initConfig({
         bg: true
       },
       tree: {
-        cmd: "cd app & tree /f /a > %temp%\Listing >> files_structure.txt",
+        cmd: 'tree ' + __dirname + '\\<%= project.app %> /f /a > files_structure.txt',
         bg: true
       }
     }
