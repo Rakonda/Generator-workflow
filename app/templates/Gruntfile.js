@@ -3,10 +3,15 @@ module.exports = function(grunt) {
 
 // Load grunt tasks automatically
 require('load-grunt-tasks')(grunt);
+
+// require it at the top and pass in the grunt instance
+require('time-grunt')(grunt);
+
 var fs    = require('fs');
 var _     = require('underscore')._;
-var dir     = require('node-dir');
 var inquirer = require("inquirer");
+var path = require('path');
+
 // Define the configuration for all the tasks
 grunt.initConfig({
  project: {
@@ -110,7 +115,16 @@ grunt.initConfig({
         cmd: 'tree ' + __dirname + '\\<%= project.app %> /f /a > files_structure.txt',
         bg: true
       }
-    }
+},
+copy: {
+  main: {
+    files: [
+      // includes files within path and its sub-directories
+      {expand: true, src: ['app/**'], dest: 'dest/'},
+    ]
+  }
+},
+clean: ["dest"]
 }); // end of grunt config
 
 grunt.event.on('watch', function(action, fileproject, target) {
@@ -123,26 +137,12 @@ grunt.registerTask('server', 'Treat yo\' self!', function() {
 });
 
 
+grunt.registerTask('prepare', 'Make a tree informations of files in directory', function() {
 
-grunt.registerTask('prepare', 'Prepare work folder', function() {
 var done = this.async();
-
-dir.files("app", function(err,  files) {
-    if (err) throw err;
-    var arr = [];
-    for(var i in files) {
-      arr[i] = new Array();
-      arr[i][0] = files[i];
-      arr[i][1] = fs.statSync(files[i]).ctime.getTime();
-      arr[i][2] = fs.statSync(files[i]).mtime.getTime();
-      arr[i][3] = fs.statSync(files[i]).size;
-      arr.push(arr[i]);
-    }
-    arr = _.uniq(arr, false);
-    grunt.file.write('Files.txt', JSON.stringify(arr, null, 1), 'utf8');
-
-    //console.log(arr);
-});
+grunt.file.write('Files.txt', JSON.stringify(readdirtree('app'), null, 1), 'utf8');
+grunt.log.write("Files.txt updated with success.");
+done();
 
 });
 
@@ -152,7 +152,11 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   var data = [];
   var project_info = [];
 
-  // Get project infromations
+  // Get project infromations:
+  // "project_name"  Project name.
+  // "creation_date" last build date.
+  // "version" Last build version.
+  // "base_name" Project Files's base folder.
   try {
     project_info = grunt.file.readJSON('project.txt',"utf8");
   } catch (e) {
@@ -162,6 +166,13 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   // Read files.txt file, and get data from it.
   try {
     data = grunt.file.readJSON('Files.txt',"utf8");
+  } catch (e) {
+    grunt.log.errorlns(e);
+  }
+
+  // Get list of files exist in project.app
+  try {
+    var get_files = readdirtree('app');
   } catch (e) {
     grunt.log.errorlns(e);
   }
@@ -185,6 +196,12 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
       name: 'tree',
       message: 'Generate files strecture? ',
       default: true
+    },
+    {
+      type: 'confirm',
+      name: 'log',
+      message: 'Create new log file? ',
+      default: true
     }
   ];
 
@@ -196,62 +213,20 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
    }
     
     // Check for the new files.
-    dir.files("app", function(err,  files) {
-    if (err) throw err;
-     var arr = [];
-    for(var x in files) {
-      arr[x] = new Array();
-      arr[x][0] = files[x];
-      arr[x][1] = fs.statSync(files[x]).ctime.getTime();
-      arr[x][2] = fs.statSync(files[x]).mtime.getTime();
-      arr[x][3] = fs.statSync(files[x]).size;
-      arr.push(arr[x]);
-    }
-    arr = _.uniq(arr, false);
-    var new_files = diffArray(arr, data);
+    var new_files = diffArray(get_files, data);
 
     // Check for the modifed files. 
     var m_files = [];
-    for(var t in arr){
+    for(var t in get_files){
       for(m in data){
-        if(arr[t][0] == data[m][0]){
-          if(arr[t][2] != data[m][2])
+        if(get_files[t][0] == data[m][0]){
+          if(get_files[t][2] != data[m][2])
           {
-            m_files.push(arr[t][0]);
+            m_files.push(get_files[t][0]);
           }
         }
       }
     }
-
-    // Create log template
-  var text =  "════════════════════════════════════════════════════\n";
-      text += " Project       : " + project_info.project_name + "\n";
-      text += " Creation date : " + project_info.creation_date + "\n";
-      text += " Version       : " + project_info.version + "\n";
-      text += " Default base  : " + project_info.base_name + "\n";
-      text += "════════════════════════════════════════════════════\n\n";
-      text += "Deleted files (" + _.size(deleted_files) + ") :\n\n";
-      if(_.size(deleted_files) > 0) {
-        for(var df in deleted_files) text += "\t-> "+ deleted_files[df] +"\n";
-      }
-      text += "————————————————————————————————————————————————————\n\n";
-      text += "New files (" + _.size(new_files) + ") :\n\n";
-      if(_.size(new_files) > 0) {
-        for(var nf in new_files) text += "\t► "+ new_files[nf][0] +"\n";
-      }
-      text += "————————————————————————————————————————————————————\n\n";
-      text += "Modifed files (" + _.size(m_files) + ") :\n\n";
-      if(_.size(m_files) > 0) {
-        for(var mf in m_files) text += "\t► "+ m_files[mf] +"\n";
-      }
-      text += "\n\n\n";
-
-      fs.appendFile('log.txt', text, function (err) {
-        if (err) throw err;
-      });
-    // grunt.file.write('log.txt', text, 'utf8');
-  });
-
 
     inquirer.prompt( questions , function( answers ) {
     if (answers.overwrite) {
@@ -267,6 +242,7 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
       var d = new Date();
       d = d.getDate() +"-"+d.getMonth()+"-"+d.getFullYear();
       project_info.creation_date = d;
+
       if(answers.version == project_info.version) {
         var outzip = project_info.project_name + " v" + project_info.version + " " +d;
       }else 
@@ -293,6 +269,39 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
         grunt.task.run("zip:without_tree");
       }
 
+    // Create log template
+    var text =  "***************************************************\n";
+        text += " Project       : " + project_info.project_name + "\n";
+        text += " Creation date : " + project_info.creation_date + "\n";
+        text += " Version       : " + answers.version + "\n";
+        text += " Default base  : " + project_info.base_name + "\n";
+        text += "════════════════════════════════════════════════════\n\n";
+        text += "Deleted files (" + _.size(deleted_files) + ") :\n\n";
+        if(_.size(deleted_files) > 0) {
+          for(var df in deleted_files) text += "\t-> "+ deleted_files[df] +"\n";
+        }
+        text += "-----------------------------------------------------\n\n";
+        text += "New files (" + _.size(new_files) + ") :\n\n";
+        if(_.size(new_files) > 0) {
+          for(var nf in new_files) text += "\t► "+ new_files[nf][0] +"\n";
+        }
+        text += "-----------------------------------------------------\n\n";
+        text += "Modifed files (" + _.size(m_files) + ") :\n\n";
+        if(_.size(m_files) > 0) {
+          for(var mf in m_files) text += "\t► "+ m_files[mf] +"\n";
+        }
+        text += "\n";
+
+        if(answers.log)
+        {
+          grunt.file.write('log.txt', text, 'utf8');
+        }else
+        {
+          fs.appendFile('log.txt', text, function (err) {
+            if (err) throw err;
+          });
+        }
+        
       done();
     });
 
@@ -308,6 +317,34 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
         if (!seen[a[i][0]])
             diff.push(a[i]);
     return diff;
+  }
+
+  function readdirtree (dirname, filter, arr) {
+    arr = arr || []
+    filter = filter || function () { return true }
+    uniq_arr = [];
+
+    fs.readdirSync(dirname)
+    .filter(filter)
+    .map(function (file) { return path.join(dirname, file) })
+    .forEach(function (file) {
+      if (fs.statSync(file).isDirectory()) {
+          readdirtree(file, filter, arr)
+      }else {
+         arr.push(file)
+        for(var i in arr) {
+          uniq_arr[i] = new Array();
+          uniq_arr[i][0] = arr[i];
+          uniq_arr[i][1] = fs.statSync(arr[i]).ctime.getTime();
+          uniq_arr[i][2] = fs.statSync(arr[i]).mtime.getTime();
+          uniq_arr[i][3] = fs.statSync(arr[i]).size;
+          uniq_arr.push(uniq_arr[i]);
+        }
+      }
+    })
+
+    uniq_arr = _.uniq(uniq_arr, false);
+    return uniq_arr;
   }
 
 // Default task.

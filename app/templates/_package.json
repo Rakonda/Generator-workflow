@@ -13,7 +13,8 @@
     "grunt-zip": "*",
     "underscore": "*",
     "grunt-bg-shell": "*",
-    "node-dir": "*",
-    "inquirer": "*"
+    "inquirer": "*",
+    "grunt-contrib-copy": "~0.5.0",
+    "grunt-contrib-clean": "~0.5.0"
   }
 }
