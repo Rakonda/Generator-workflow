@@ -136,11 +136,10 @@ grunt.registerTask('server', 'Treat yo\' self!', function() {
  grunt.task.run(['connect:livereload','watch']);
 });
 
-
 grunt.registerTask('prepare', 'Make a tree informations of files in directory', function() {
 
 var done = this.async();
-grunt.file.write('Files.txt', JSON.stringify(readdirtree('app'), null, 1), 'utf8');
+grunt.file.write('Files.txt', JSON.stringify(readdirtree('app'), null, 0), 'utf8');
 grunt.log.write("Files.txt updated with success.");
 done();
 
@@ -152,27 +151,15 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   var data = [];
   var project_info = [];
 
-  // Get project infromations:
-  // "project_name"  Project name.
-  // "creation_date" last build date.
-  // "version" Last build version.
-  // "base_name" Project Files's base folder.
   try {
+    //Get project infromations
     project_info = grunt.file.readJSON('project.txt',"utf8");
-  } catch (e) {
-    grunt.log.errorlns(e);
-  }
-
-  // Read files.txt file, and get data from it.
-  try {
+    // Read files.txt file, and get data from it.
     data = grunt.file.readJSON('Files.txt',"utf8");
-  } catch (e) {
-    grunt.log.errorlns(e);
-  }
-
-  // Get list of files exist in project.app
-  try {
+    // Get list of files exist in project.app
     var get_files = readdirtree('app');
+    console.log(get_files);
+    //process.exit(0);
   } catch (e) {
     grunt.log.errorlns(e);
   }
@@ -283,12 +270,12 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
         text += "-----------------------------------------------------\n\n";
         text += "New files (" + _.size(new_files) + ") :\n\n";
         if(_.size(new_files) > 0) {
-          for(var nf in new_files) text += "\t► "+ new_files[nf][0] +"\n";
+          for(var nf in new_files) text += "\t-> "+ new_files[nf][0] +"\n";
         }
         text += "-----------------------------------------------------\n\n";
         text += "Modifed files (" + _.size(m_files) + ") :\n\n";
         if(_.size(m_files) > 0) {
-          for(var mf in m_files) text += "\t► "+ m_files[mf] +"\n";
+          for(var mf in m_files) text += "\t-> "+ m_files[mf] +"\n";
         }
         text += "\n";
 
@@ -320,31 +307,34 @@ grunt.registerTask('build', 'Treat yo\' self!', function() {
   }
 
   function readdirtree (dirname, filter, arr) {
+    var uniq_arr = [];
+    var arr = walk_dir("app");
+    for(var i in arr) {
+      uniq_arr[i] = new Array();
+      uniq_arr[i][0] = arr[i];
+      uniq_arr[i][1] = fs.statSync(arr[i]).ctime.getTime();
+      uniq_arr[i][2] = fs.statSync(arr[i]).mtime.getTime();
+      uniq_arr[i][3] = fs.statSync(arr[i]).size;
+      uniq_arr.push(uniq_arr[i]);
+    }
+    return uniq_arr;
+  }
+
+  function walk_dir (dirname, filter, arr) {
     arr = arr || []
     filter = filter || function () { return true }
-    uniq_arr = [];
 
     fs.readdirSync(dirname)
     .filter(filter)
     .map(function (file) { return path.join(dirname, file) })
     .forEach(function (file) {
       if (fs.statSync(file).isDirectory()) {
-          readdirtree(file, filter, arr)
+          walk_dir(file, filter, arr)
       }else {
          arr.push(file)
-        for(var i in arr) {
-          uniq_arr[i] = new Array();
-          uniq_arr[i][0] = arr[i];
-          uniq_arr[i][1] = fs.statSync(arr[i]).ctime.getTime();
-          uniq_arr[i][2] = fs.statSync(arr[i]).mtime.getTime();
-          uniq_arr[i][3] = fs.statSync(arr[i]).size;
-          uniq_arr.push(uniq_arr[i]);
-        }
       }
     })
-
-    uniq_arr = _.uniq(uniq_arr, false);
-    return uniq_arr;
+    return arr = _.uniq(arr, false);
   }
 
 // Default task.
